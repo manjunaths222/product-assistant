@@ -13,6 +13,7 @@ from app.models.schemas import ProjectCreate, ProjectResponse
 from app.services.git_service import GitService
 from app.langgraph.unified_orchestrator import UnifiedOrchestrator
 from app.models.schemas import FeasibilityQueryRequest, FeasibilityQueryResponse
+from app.utils import ensure_repo_exists
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 git_service = GitService()
@@ -112,6 +113,9 @@ async def analyze_feasibility(
         if not project:
             raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
         
+        # Ensure repository exists (re-clone if needed)
+        ensure_repo_exists(project, db)
+
         # Run feasibility analysis using unified orchestrator
         orchestrator = UnifiedOrchestrator()
         result = orchestrator.run(
@@ -129,6 +133,7 @@ async def analyze_feasibility(
             open_questions=result.get("open_questions", []),
             technical_feasibility=result.get("technical_feasibility", "Unknown"),
             rough_estimate=result.get("rough_estimate", {}),
+            task_breakdown=result.get("task_breakdown", {}),
             analysis_timestamp=datetime.utcnow(),
             chat_id=result.get("chat_id")
         )

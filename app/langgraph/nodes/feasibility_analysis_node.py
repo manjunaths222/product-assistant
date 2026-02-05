@@ -87,13 +87,26 @@ Output format (use this structure exactly):
 ...]
 
 ## Rough Estimate
-[Provide rough estimates:
-- Development Time: [hours/days]
-- Testing Time: [hours/days]
-- Total Effort: [hours/days]
+[IMPORTANT: Before providing estimates, VALIDATE the estimates from the Codex CLI Analysis context above. Do NOT blindly use estimates from the analysis - critically evaluate them considering:
+- Agentic tools (Codex, Cursor, GitHub Copilot) will be used for development, which significantly reduces development time
+- Similar complexity requirements should have similar estimates (deterministic mapping)
+- Review the breakdown and ensure it's realistic for agentic tool-assisted development
+
+Provide rough estimates using DETERMINISTIC story point mapping:
+- Total Time (hours): [calculate first, assuming agentic tools are used - validate against codex analysis but adjust if needed]
+- Story Points: [MUST map deterministically: 1=2-3h, 2=<1day, 3=2-3days, 5=<1week, 8=<1sprint, 13=danger zone]
+- Breakdown: Development (Xh), Testing (Xh), Documentation (Xh), Review (Xh), Deployment (Xh)
 - Complexity: [Low/Medium/High]
-- Story Points: [if applicable]
 - Dependencies: [list dependencies in business terms]]
+
+## Task Breakdown
+[High-level tasks (only include what's needed):
+- Design: [if required - describe what design work is needed]
+- Spike/Research: [if required - describe what research or exploration is needed]
+- Proof of Concept: [if required - describe what POC is needed]
+- Implementation: [describe the implementation work]
+- Quality Assurance/Testing: [describe the QA and testing work]
+Note: Not all tasks are required. Only include tasks that are actually needed for this requirement.]
 """
 
             formatted_analysis = gemini_client.generate_content(
@@ -108,6 +121,7 @@ Avoid technical jargon, code references, or file names. Be thorough, realistic, 
             risks = []
             open_questions = []
             rough_estimate = {}
+            task_breakdown = {}
             technical_feasibility = "Unknown"
             high_level_design = formatted_analysis
             
@@ -148,12 +162,34 @@ Avoid technical jargon, code references, or file names. Be thorough, realistic, 
             if high_level_section:
                 high_level_design = high_level_section
             
+            # Extract task breakdown
+            task_breakdown_section = _section(formatted_analysis, "## Task Breakdown")
+            if task_breakdown_section:
+                # Parse task breakdown - look for common task types
+                task_breakdown = {
+                    "raw_text": task_breakdown_section.strip(),
+                    "parsed": True
+                }
+                # Try to extract individual tasks
+                lower_section = task_breakdown_section.lower()
+                if "design" in lower_section:
+                    task_breakdown["design"] = True
+                if "spike" in lower_section or "research" in lower_section:
+                    task_breakdown["spike"] = True
+                if "poc" in lower_section or "proof of concept" in lower_section:
+                    task_breakdown["poc"] = True
+                if "implementation" in lower_section:
+                    task_breakdown["implementation"] = True
+                if "qa" in lower_section or "testing" in lower_section or "quality assurance" in lower_section:
+                    task_breakdown["qa"] = True
+
             return {
                 "high_level_design": high_level_design,
                 "risks": risks,
                 "open_questions": open_questions,
                 "technical_feasibility": technical_feasibility,
                 "rough_estimate": rough_estimate,
+                "task_breakdown": task_breakdown,
                 "messages": state.get("messages", []) + [f"Feasibility analysis completed for project {state.get('project_id')}"]
             }
             
@@ -166,6 +202,7 @@ Avoid technical jargon, code references, or file names. Be thorough, realistic, 
                 "open_questions": [error_msg],
                 "technical_feasibility": "Unknown",
                 "rough_estimate": {"error": error_msg},
+                "task_breakdown": {"error": error_msg},
                 "messages": state.get("messages", []) + [error_msg]
             }
     

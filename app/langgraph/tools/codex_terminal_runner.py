@@ -6,6 +6,7 @@ Based on jira-planbot implementation
 import os
 import subprocess
 import time
+import re
 from pathlib import Path
 import logging
 
@@ -32,21 +33,24 @@ def run_codex_in_terminal(repo_path: str, requirement_summary: str) -> str:
     output_path = f"/tmp/codex_last_message_{os.getpid()}_{int(time.time())}.txt"
 
     prompt = f"""
-You are an expert software architect and senior engineer analyzing a production codebase.
+You are a product strategist and business analyst helping a product manager understand the feasibility and effort required for a new feature or requirement.
 
 Rules:
 - Read-only analysis
 - Do NOT write or modify code
 - Do NOT run destructive commands
+- Write for product managers, NOT engineers
+- Focus on business impact, user experience, and product considerations
+- Use plain language - avoid technical jargon when possible
 - Estimation MUST strictly be based on the assumption that agentic tools (Codex, Cursor, GitHub Copilot, or similar AI coding assistants) will be used during development. Do NOT estimate as if coding manually.
-- Estimation must include breakdown of dev effort, testing effort, documentation effort, etc. Make sure to include all the details in the estimation.
+- Estimation must be deterministic - similar complexities should yield similar estimates
 
 Task:
-- Identify impacted modules and files
-- Highlight existing patterns
-- Call out risks, edge cases, tech debt
-- Mention testing implications
-- Provide a high-level design approach and technical implementation strategy
+- Identify what parts of the product/system will be affected (in business terms)
+- Highlight existing capabilities and patterns that can be leveraged
+- Call out business risks, user experience concerns, and product implications
+- Mention testing and quality assurance considerations from a product perspective
+- Provide a high-level product approach (what will users experience, what capabilities will be enabled)
 - Provide an estimation (story points + time in hours) and complexity/risk assessment
 
 Requirement/Query:
@@ -54,23 +58,55 @@ Requirement/Query:
 
 Respond in the following format:
 
-1. Impacted Files
-2. Existing Patterns
-3. Risks & Edge Cases
-4. Test Considerations
-5. Architectural Design
-6. Technical Approach
-7. Estimation (MUST follow story point mapping):
-   - Total Time (hours): [calculate first, assuming agentic tools]
-   - Story Points: [map using: 1=2-3h, 2=<1day, 3=2-3days, 5=<1week, 8=<1sprint, 13=danger]
-   - Breakdown: Dev (Xh), Testing (Xh), Docs (Xh), Review (Xh), Deploy (Xh)
+1. Product Impact
+   - What parts of the product/user experience will be affected?
+   - What new capabilities will be enabled?
+   - What user workflows or features will change?
+
+2. Existing Capabilities
+   - What existing features or patterns can be leveraged?
+   - What similar functionality already exists?
+
+3. Business Risks & Considerations
+   - What are the main risks from a product/business perspective?
+   - What edge cases or user scenarios need special consideration?
+   - What product decisions are needed?
+
+4. Quality Assurance Considerations
+   - What testing scenarios are important from a user/product perspective?
+   - What quality gates should be considered?
+
+5. High-Level Product Approach
+   - How will this feature work from a user's perspective?
+   - What is the recommended product strategy?
+
+6. Implementation Strategy
+   - High-level approach to building this (in business terms, not technical details)
+   - What phases or milestones make sense?
+
+7. Estimation (MUST follow deterministic story point mapping):
+   - Total Time (hours): [calculate first, assuming agentic tools are used]
+   - Story Points: [MUST map deterministically using: 1=2-3h, 2=<1day, 3=2-3days, 5=<1week, 8=<1sprint, 13=danger zone - should be broken down]
+   - Breakdown: Development (Xh), Testing (Xh), Documentation (Xh), Review (Xh), Deployment (Xh)
    - Complexity: [Low/Medium/High]
-   - Risks: [list specific risks]
+   - Business Risks: [list specific product/business risks]
+
 8. Task Breakdown
-   - List of specific, actionable subtasks
-   - Each task should reference specific files/modules
+   - High-level tasks (only include what's needed):
+     * Design (if required)
+     * Spike/Research (if required)
+     * Proof of Concept (if required)
+     * Implementation
+     * Quality Assurance/Testing
+   - Each task should be described in product/business terms
+
 9. Dependencies
+   - What other features, systems, or decisions are needed?
+   - What external dependencies exist?
+
 10. Acceptance Criteria
+    - What defines success from a product perspective?
+    - What user outcomes should be achieved?
 
 """.strip()
 
@@ -115,4 +151,3 @@ Respond in the following format:
     except Exception as e:
         logger.error(f"Error running terminal Codex analysis: {str(e)}", exc_info=True)
         return ""
-

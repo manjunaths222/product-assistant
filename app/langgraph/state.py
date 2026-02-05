@@ -31,5 +31,6 @@ class FeasibilityAnalysisState(TypedDict):
     open_questions: List[str]
     technical_feasibility: str
     rough_estimate: Dict[str, Any]
+    task_breakdown: Dict[str, Any]
     messages: List[str]
 

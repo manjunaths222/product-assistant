@@ -11,6 +11,7 @@ from app.models.database import get_db
 from app.models.db_models import Project, Recipe
 from app.models.schemas import RecipeCreate, RecipeResponse, FeatureQueryRequest, FeatureQueryResponse
 from app.langgraph.unified_orchestrator import UnifiedOrchestrator
+from app.utils import ensure_repo_exists
 
 router = APIRouter(prefix="/recipes", tags=["Recipes"])
 
@@ -105,6 +106,9 @@ async def query_feature(
         if not project:
             raise HTTPException(status_code=404, detail=f"Project '{recipe.project_id}' not found")
         
+        # Ensure repository exists (re-clone if needed)
+        ensure_repo_exists(project, db)
+
         # Run feature analysis using unified orchestrator
         orchestrator = UnifiedOrchestrator()
         result = orchestrator.run(

@@ -78,6 +78,7 @@ class FeasibilityQueryResponse(BaseModel):
     open_questions: List[str]
     technical_feasibility: str
     rough_estimate: Dict[str, Any]
+    task_breakdown: Dict[str, Any]
     analysis_timestamp: datetime
     chat_id: Optional[int] = Field(None, description="Chat ID for follow-up conversations")
 

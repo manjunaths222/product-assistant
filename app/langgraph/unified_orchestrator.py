@@ -9,7 +9,6 @@ from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from app.langgraph.unified_state import UnifiedAgentState
 from app.langgraph.unified_graph import create_unified_graph
-from app.langgraph.tools.codex_terminal_runner import run_codex_in_terminal
 from app.services.git_service import GitService
 from app.models.db_models import Chat
 
@@ -100,17 +99,8 @@ class UnifiedOrchestrator:
             codebase_structure = {}
             codex_analysis = ""
             
-            if repo_path and (query or requirement):
-                codebase_structure = self.git_service.get_codebase_structure(repo_path)
-                
-                # Run Codex analysis if needed for explicit analysis requests
-                # Don't run for chat messages - router will determine if analysis is needed
-                full_query = query or f"{requirement}\n\nContext: {context or ''}"
-                logger.info(f"Running terminal Codex analysis...")
-                codex_analysis = run_codex_in_terminal(repo_path, full_query)
-                if codex_analysis:
-                    logger.info("Terminal Codex analysis completed.")
-                # Note: If router determines message needs analysis, we'll run Codex after routing
+            # Codex analysis will be run by prepare_analysis_node in the graph workflow
+            # No need to run it here - prepare_analysis_node handles it for all analysis requests
             
             # Load conversation history if chat_id is provided
             conversation_history = []
@@ -152,7 +142,8 @@ class UnifiedOrchestrator:
                 "open_questions": [],
                 "technical_feasibility": None,
                 "rough_estimate": {},
-                "codex_analysis": codex_analysis,
+                "task_breakdown": {},
+                "codex_analysis": "",  # Will be populated by prepare_analysis_node
                 "response": None,
                 "messages": []
             }
@@ -225,6 +216,7 @@ Feature Details:
                 result["open_questions"] = final_state.get("open_questions", [])
                 result["technical_feasibility"] = final_state.get("technical_feasibility")
                 result["rough_estimate"] = final_state.get("rough_estimate", {})
+                result["task_breakdown"] = final_state.get("task_breakdown", {})
                 
                 # Use effective requirement (could be from message or explicit requirement)
                 effective_requirement = requirement or message or ""

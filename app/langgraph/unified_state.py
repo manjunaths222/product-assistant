@@ -34,6 +34,7 @@ class UnifiedAgentState(TypedDict):
     open_questions: List[str]
     technical_feasibility: Optional[str]
     rough_estimate: Dict[str, Any]
+    task_breakdown: Dict[str, Any]
     
     # Codex analysis (shared)
     codex_analysis: str

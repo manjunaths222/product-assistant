@@ -71,6 +71,7 @@ def create_feasibility_analysis_adapter() -> callable:
                 "open_questions": [],
                 "technical_feasibility": "",
                 "rough_estimate": {},
+                "task_breakdown": {},
                 "messages": []
             }
             
@@ -85,6 +86,7 @@ def create_feasibility_analysis_adapter() -> callable:
                 "open_questions": result.get("open_questions", []),
                 "technical_feasibility": result.get("technical_feasibility", ""),
                 "rough_estimate": result.get("rough_estimate", {}),
+                "task_breakdown": result.get("task_breakdown", {}),
                 "messages": state.get("messages", []) + result.get("messages", [])
             }
         except Exception as e:
