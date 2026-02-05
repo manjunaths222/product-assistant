@@ -11,20 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Render service
-        if: env.RENDER_URL != ''
         env:
           RENDER_URL: ${{ secrets.RENDER_URL }}
         run: |
           if [ -n "$RENDER_URL" ]; then
             curl -f "$RENDER_URL/health" || echo "Service ping failed"
-          fi
-      
-      - name: Ping Railway service
-        if: env.RAILWAY_URL != ''
-        env:
-          RAILWAY_URL: ${{ secrets.RAILWAY_URL }}
-        run: |
-          if [ -n "$RAILWAY_URL" ]; then
-            curl -f "$RAILWAY_URL/health" || echo "Service ping failed"
+          else
+            echo "RENDER_URL secret not set. Please add it in repository settings."
           fi
 

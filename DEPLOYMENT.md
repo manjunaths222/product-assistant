@@ -1,17 +1,16 @@
-# Deployment Guide - Free Platforms
+# Deployment Guide - Render
 
-This guide covers deploying the Product Assistant API to free hosting platforms.
+This guide covers deploying the Product Assistant API to Render.com.
 
 ## Prerequisites
 
 1. **GitHub Account** - Your code should be in a GitHub repository
-2. **API Keys** - You'll need:
+2. **Render Account** - Sign up at [render.com](https://render.com) (free with GitHub)
+3. **API Keys**:
    - `GEMINI_API_KEY` - Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
    - `CODEX_API_KEY` - Your OpenAI/Codex API key
 
-## Free Deployment Options
-
-### Option 1: Render (Recommended) ⭐
+## Render Free Tier
 
 **Free Tier Includes:**
 - 750 hours/month of free compute time
@@ -19,310 +18,199 @@ This guide covers deploying the Product Assistant API to free hosting platforms.
 - Automatic SSL certificates
 - Custom domains
 
-**Steps:**
+## Deployment Steps
 
-1. **Sign up** at [render.com](https://render.com) (free with GitHub)
+### Step 1: Create PostgreSQL Database
 
-2. **Create PostgreSQL Database:**
-   - Go to Dashboard → New → PostgreSQL
-   - Name: `product-assistant-db`
-   - Plan: Free (90 days)
-   - Region: Choose closest to you
-   - Click "Create Database"
-   - Note the connection string (you'll use it later)
+1. Go to [Render Dashboard](https://dashboard.render.com)
+2. Click **"New"** → **"PostgreSQL"**
+3. Configure:
+   - **Name**: `product-assistant-db`
+   - **Plan**: Free (90 days)
+   - **Region**: Choose closest to you (e.g., Oregon, Frankfurt)
+   - **Database**: `product_assistant`
+   - **User**: `yml` (or leave default)
+4. Click **"Create Database"**
+5. **Important**: Copy the **Internal Database URL** or **External Database URL** (you'll need it in Step 3)
 
-3. **Deploy Web Service:**
-   - Go to Dashboard → New → Web Service
-   - Connect your GitHub repository
+### Step 2: Deploy Web Service
+
+1. In Render Dashboard, click **"New"** → **"Web Service"**
+2. **Connect GitHub**:
+   - Click "Connect GitHub" if not already connected
+   - Authorize Render to access your repositories
    - Select the `product-assistant` repository
-   - Configure:
-     - **Name**: `product-assistant-api`
-     - **Region**: Same as database
-     - **Branch**: `main` (or your default branch)
-     - **Root Directory**: Leave empty
-     - **Environment**: `Docker`
-     - **Dockerfile Path**: `Dockerfile`
-     - **Docker Context**: `.`
+3. **Configure Service**:
+   - **Name**: `product-assistant-api`
+   - **Region**: Same as your database
+   - **Branch**: `main` (or your default branch)
+   - **Root Directory**: Leave empty
+   - **Environment**: `Docker`
+   - **Dockerfile Path**: `Dockerfile`
+   - **Docker Context**: `.`
 
-4. **Set Environment Variables:**
-   - In the Web Service settings, go to "Environment"
-   - Add these variables:
-     ```
-     DATABASE_URL=<your-postgres-connection-string>
-     HOST=0.0.0.0
-     PORT=8000
-     GEMINI_API_KEY=<your-gemini-api-key>
-     GEMINI_MODEL=gemini-2.5-flash
-     GEMINI_FALLBACK_MODEL=gemini-2.5-pro
-     CODEX_API_KEY=<your-codex-api-key>
-     CODEX_MODEL=gpt-5-codex
-     CODEX_FALLBACK_MODEL=gpt-5
-     GIT_REPO_BASE_PATH=/tmp/product-assistant-repos
-     GIT_BRANCH=main
-     ```
+### Step 3: Set Environment Variables
 
-5. **Deploy:**
-   - Click "Create Web Service"
-   - Render will build and deploy automatically
-   - Your API will be available at: `https://product-assistant-api.onrender.com`
+1. In your Web Service settings, go to **"Environment"** tab
+2. Add the following environment variables:
 
-**Note:** Free tier services spin down after 15 minutes of inactivity. First request after spin-down may take 30-60 seconds.
-
----
-
-### Option 2: Railway
-
-**Free Tier Includes:**
-- $5/month credit (enough for small apps)
-- Free PostgreSQL database
-- Automatic deployments from GitHub
-
-**Steps:**
-
-1. **Sign up** at [railway.app](https://railway.app) (free with GitHub)
-
-2. **Create New Project:**
-   - Click "New Project"
-   - Select "Deploy from GitHub repo"
-   - Choose your `product-assistant` repository
-
-3. **Add PostgreSQL Database:**
-   - In your project, click "+ New"
-   - Select "Database" → "Add PostgreSQL"
-   - Railway automatically creates the database
-
-4. **Configure Web Service:**
-   - Railway should auto-detect the Dockerfile
-   - If not, go to Settings → Source → Dockerfile Path: `Dockerfile`
-
-5. **Set Environment Variables:**
-   - Go to your web service → Variables
-   - Add:
-     ```
-     DATABASE_URL=${{Postgres.DATABASE_URL}}
-     HOST=0.0.0.0
-     PORT=$PORT
-     GEMINI_API_KEY=<your-gemini-api-key>
-     GEMINI_MODEL=gemini-2.5-flash
-     GEMINI_FALLBACK_MODEL=gemini-2.5-pro
-     CODEX_API_KEY=<your-codex-api-key>
-     CODEX_MODEL=gpt-5-codex
-     CODEX_FALLBACK_MODEL=gpt-5
-     GIT_REPO_BASE_PATH=/tmp/product-assistant-repos
-     GIT_BRANCH=main
-     ```
-   - Note: `DATABASE_URL` uses Railway's variable reference syntax
-
-6. **Deploy:**
-   - Railway will automatically deploy on every push to main
-   - Get your URL from the service settings
-
----
-
-### Option 3: Fly.io
-
-**Free Tier Includes:**
-- 3 shared-cpu VMs with 256MB RAM each
-- 3GB persistent volume storage
-- 160GB outbound data transfer
-
-**Note:** If you encounter connection errors with Fly.io CLI, see `FLY_TROUBLESHOOTING.md` for solutions. Since you already have a Render database, **Render is recommended** (see Option 1).
-
-**Steps:**
-
-1. **Install Fly CLI:**
-   ```bash
-   brew install flyctl
-   # or
-   curl -L https://fly.io/install.sh | sh
+   **Required:**
+   ```
+   DATABASE_URL=<your-postgres-connection-string-from-step-1>
+   GEMINI_API_KEY=<your-gemini-api-key>
+   CODEX_API_KEY=<your-codex-api-key>
    ```
 
-2. **Sign up and login:**
-   ```bash
-   fly auth signup
-   fly auth login
-   # If you get connection errors, try:
-   fly auth login --web
+   **Optional (with defaults):**
+   ```
+   HOST=0.0.0.0
+   PORT=8000
+   GEMINI_MODEL=gemini-2.5-flash
+   GEMINI_FALLBACK_MODEL=gemini-2.5-pro
+   CODEX_MODEL=gpt-5-codex
+   CODEX_FALLBACK_MODEL=gpt-5
+   GIT_REPO_BASE_PATH=/tmp/product-assistant-repos
+   GIT_BRANCH=main
    ```
 
-3. **Create app:**
-   ```bash
-   fly launch
+   **Example DATABASE_URL:**
    ```
-   - Follow prompts to create app
-   - Don't deploy yet (we need to configure database first)
-
-4. **Create PostgreSQL Database:**
-   ```bash
-   fly postgres create --name product-assistant-db
-   ```
-   - Note the connection string
-
-5. **Attach Database:**
-   ```bash
-   fly postgres attach --app product-assistant-api product-assistant-db
+   postgresql://yml:password@dpg-xxxxx.oregon-postgres.render.com:5432/product_assistant
    ```
 
-6. **Set Secrets:**
-   ```bash
-   fly secrets set GEMINI_API_KEY=<your-gemini-api-key>
-   fly secrets set CODEX_API_KEY=<your-codex-api-key>
-   fly secrets set GEMINI_MODEL=gemini-2.5-flash
-   fly secrets set GEMINI_FALLBACK_MODEL=gemini-2.5-pro
-   fly secrets set CODEX_MODEL=gpt-5-codex
-   fly secrets set CODEX_FALLBACK_MODEL=gpt-5
-   fly secrets set GIT_REPO_BASE_PATH=/tmp/product-assistant-repos
-   fly secrets set GIT_BRANCH=main
+### Step 4: Deploy
+
+1. Click **"Create Web Service"**
+2. Render will:
+   - Build your Docker image
+   - Deploy the service
+   - Show build logs in real-time
+3. Once deployed, your API will be available at:
    ```
-
-7. **Deploy:**
-   ```bash
-   fly deploy
+   https://product-assistant-api.onrender.com
    ```
-
-8. **Get URL:**
-   ```bash
-   fly open
-   ```
-
----
-
-### Option 4: Supabase + Fly.io/Render
-
-**Free Tier Includes:**
-- Free PostgreSQL database (500MB, unlimited API requests)
-- Can host FastAPI separately on Fly.io or Render
-
-**Steps:**
-
-1. **Create Supabase Project:**
-   - Sign up at [supabase.com](https://supabase.com)
-   - Create new project
-   - Get connection string from Settings → Database
-
-2. **Deploy FastAPI:**
-   - Use any of the above methods (Render/Railway/Fly.io)
-   - Set `DATABASE_URL` to your Supabase connection string
-   - Format: `postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres`
-
----
 
 ## Post-Deployment
 
 ### 1. Verify Database Initialization
 
-Check that tables were created. You can use the health endpoint:
+Check that tables were created:
+
 ```bash
-curl https://your-app-url.onrender.com/health
+curl https://product-assistant-api.onrender.com/health
 ```
 
 ### 2. Test API Endpoints
 
 ```bash
 # Health check
-curl https://your-app-url.onrender.com/health
+curl https://product-assistant-api.onrender.com/health
 
 # List projects
-curl https://your-app-url.onrender.com/projects
+curl https://product-assistant-api.onrender.com/projects
 
 # API Documentation
-open https://your-app-url.onrender.com/docs
+open https://product-assistant-api.onrender.com/docs
 ```
 
 ### 3. Monitor Logs
 
-- **Render**: Dashboard → Your Service → Logs
-- **Railway**: Dashboard → Your Service → Deployments → View Logs
-- **Fly.io**: `fly logs`
-
----
+- Go to Render Dashboard → Your Service → **"Logs"** tab
+- View real-time logs and errors
 
 ## Important Notes
 
 ### Free Tier Limitations
 
-1. **Cold Starts**: Free tiers may spin down after inactivity
-   - First request after inactivity may be slow (30-60 seconds)
-   - Consider using a cron job to ping your service every 10 minutes
+1. **Cold Starts**: 
+   - Services spin down after 15 minutes of inactivity
+   - First request after spin-down may take 30-60 seconds
+   - Solution: Use the included GitHub Actions workflow to ping your service every 10 minutes
 
-2. **Database Limits:**
-   - Render: 90 days free, then $7/month
-   - Railway: Included in $5 credit
-   - Fly.io: Pay-as-you-go after free tier
-   - Supabase: Free tier has 500MB limit
+2. **Database**:
+   - Free PostgreSQL is available for 90 days
+   - After 90 days: $7/month
+   - Consider upgrading if you need persistent database
 
-3. **Resource Limits:**
-   - Free tiers have CPU/RAM limits
+3. **Resource Limits**:
+   - Free tier has CPU/RAM limits
    - May not handle high traffic well
+   - Consider upgrading for production use
 
-### Keeping Service Alive (Free Tiers)
+### Keeping Service Alive
 
-For Render, you can use a free cron service to ping your API:
+The repository includes a GitHub Actions workflow (`.github/workflows/keep-alive.yml`) that pings your service every 10 minutes to prevent spin-down.
 
-1. Use [cron-job.org](https://cron-job.org) (free)
-2. Set up a job to ping: `https://your-app.onrender.com/health` every 10 minutes
+**To use it:**
 
-Or use GitHub Actions:
+1. Go to your GitHub repository → Settings → Secrets and variables → Actions
+2. Add a new secret:
+   - **Name**: `RENDER_URL`
+   - **Value**: `https://your-app-name.onrender.com`
+3. The workflow will automatically run every 10 minutes
 
-```yaml
-# .github/workflows/keep-alive.yml
-name: Keep Alive
-on:
-  schedule:
-    - cron: '*/10 * * * *'  # Every 10 minutes
-jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ping service
-        run: curl https://your-app.onrender.com/health
-```
-
----
+**Alternative:** Use [cron-job.org](https://cron-job.org) (free) to ping your service:
+- URL: `https://your-app-name.onrender.com/health`
+- Frequency: Every 10 minutes
 
 ## Troubleshooting
 
 ### Database Connection Issues
 
-- Verify `DATABASE_URL` is set correctly
-- Check database is running (Render/Railway dashboards)
-- Ensure database allows connections from your service IP
+**Error: "could not connect to server"**
+- Verify `DATABASE_URL` is set correctly in environment variables
+- Check database is running in Render Dashboard
+- Ensure you're using the correct connection string (Internal vs External)
+- For external connections, ensure your database allows external connections
+
+**Error: "database does not exist"**
+- Verify database name in `DATABASE_URL` matches the created database
+- Check database status in Render Dashboard
 
 ### Build Failures
 
+**Error: "Docker build failed"**
 - Check Dockerfile syntax
 - Verify all dependencies in `requirements.txt`
-- Check build logs in platform dashboard
+- Check build logs in Render Dashboard for specific errors
+
+**Error: "Module not found"**
+- Ensure all dependencies are listed in `requirements.txt`
+- Check Python version compatibility
 
 ### Service Not Starting
 
-- Check environment variables are set
-- Verify `init_db.py` runs successfully
-- Check application logs
+**Error: "Application failed to start"**
+- Check environment variables are set correctly
+- Verify `init_db.py` runs successfully (check logs)
+- Ensure API keys are valid
+- Check application logs for specific errors
 
 ### API Keys Not Working
 
+**Error: "Invalid API key"**
 - Verify API keys are set correctly in environment variables
-- Check API key permissions and quotas
-- Ensure no extra spaces in environment variable values
+- Check for extra spaces in environment variable values
+- Ensure API keys have proper permissions
+- Verify API key quotas are not exceeded
 
----
+## Updating Your Deployment
 
-## Cost Comparison
+Render automatically deploys on every push to your main branch. To manually trigger a deployment:
 
-| Platform | Free Tier | Database | Best For |
-|----------|-----------|----------|----------|
-| **Render** | 750 hrs/month | 90 days free | Easiest setup |
-| **Railway** | $5 credit/month | Included | Good balance |
-| **Fly.io** | 3 VMs, 256MB each | Pay-as-you-go | More control |
-| **Supabase** | Unlimited API | 500MB free | Database focus |
+1. Go to Render Dashboard → Your Service
+2. Click **"Manual Deploy"** → **"Deploy latest commit"**
 
----
+## Custom Domain (Optional)
+
+1. Go to Render Dashboard → Your Service → Settings
+2. Scroll to **"Custom Domains"**
+3. Add your domain
+4. Follow DNS configuration instructions
 
 ## Next Steps
 
-1. Set up custom domain (optional, may require paid tier)
-2. Configure monitoring/alerting
-3. Set up CI/CD for automatic deployments
-4. Consider upgrading if you need more resources
-
+1. Set up monitoring/alerting
+2. Configure custom domain (optional)
+3. Consider upgrading if you need more resources
+4. Set up CI/CD for automated testing before deployment
