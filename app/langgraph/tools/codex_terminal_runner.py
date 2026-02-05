@@ -6,7 +6,6 @@ Based on jira-planbot implementation
 import os
 import subprocess
 import time
-import re
 from pathlib import Path
 import logging
 

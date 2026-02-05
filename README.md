@@ -289,6 +289,25 @@ The application reads configuration from environment variables (see `.env.exampl
 - `CODEX_API_KEY`: Codex API key for code analysis
 - `GIT_REPO_BASE_PATH`: Base path for cloning repositories
 
+## Deployment on Render
+
+The application is configured for deployment on Render using `render.yaml`.
+
+### Environment Variables
+
+Environment variables set in Render (via dashboard or `render.yaml`) are automatically passed to the Docker container and available to all processes, including the entrypoint script.
+
+**Required environment variables:**
+- `GEMINI_API_KEY`: Your Gemini API key (set in Render dashboard)
+- `CODEX_API_KEY`: Your OpenAI API key (set in Render dashboard, used for Codex CLI authentication)
+
+**Note:** `CODEX_API_KEY` is marked as `sync: false` in `render.yaml`, so it must be set manually in the Render dashboard if not already configured.
+
+The service will automatically:
+- Authenticate Codex CLI using the `CODEX_API_KEY` environment variable on container startup (via `docker-entrypoint.sh`)
+- Connect to the PostgreSQL database configured in `render.yaml`
+- Start the FastAPI server
+
 ## Database Schema
 
 The application uses SQLAlchemy ORM with the following tables:
