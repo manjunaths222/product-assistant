@@ -19,7 +19,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Codex CLI globally
-RUN npm install -g @openai/codex-cli || echo "Codex CLI installation failed - will continue without it"
+RUN npm i -g @openai/codex || echo "Codex CLI installation failed - will continue without it"
 
 # Copy application code
 COPY . .
