@@ -5,7 +5,7 @@ Product Assistant API with Agentic AI integration and Codex Product Assistant ba
 ## Features
 
 - **Project Management**: Register GitHub repositories and manage projects
-- **Recipe Management**: List and query recipes (features) in projects
+- **Feature Discovery**: Automatically discover and analyze features in codebases
 - **Feature Analysis**: Analyze codebase to return high-level design and feature details
 - **Feasibility Assessment**: Analyze new requirements for technical feasibility, risks, and estimates
 
@@ -133,7 +133,8 @@ python init_db.py
 
 The `init_db.py` script will create all necessary tables:
 - `projects` - Project information
-- `recipes` - Recipe/feature information
+- `project_features` - Discovered features from codebase analysis
+- `feasibilities` - Feasibility analysis results
 - `chats` - Chat sessions for follow-up conversations
 
 #### Option B: Using SQLite (Development Only)
@@ -211,22 +212,20 @@ The API will be available at `http://localhost:8000`
 
 ### Projects
 
-- `POST /projects` - Register a GitHub repository and create a project
+- `POST /projects` - Register a GitHub repository and create a project (feature discovery runs in background)
 - `GET /projects` - List all projects
 - `GET /projects/{project_id}` - Get a specific project
 - `POST /projects/{project_id}/feasibility` - Analyze feasibility of a new requirement
-
-### Recipes
-
-- `POST /recipes` - Create a new recipe for a project
-- `GET /recipes` - List all recipes (optionally filter by project_id)
-- `GET /recipes/{recipe_id}` - Get a specific recipe
-- `POST /recipes/{recipe_id}/query` - Query for feature details
+- `POST /projects/{project_id}/features/discover` - Discover all features in the project codebase (runs in background)
+- `GET /projects/{project_id}/features` - Get all discovered features for a project
+- `GET /projects/{project_id}/features/{feature_id}` - Get a specific feature by ID
 
 ### Chats
 
 - `POST /chats/{chat_id}/message` - Send a message in a chat session (for follow-up questions)
 - `GET /chats/{chat_id}/history` - Get conversation history for a chat
+
+**Note:** Chats are automatically created when needed (e.g., after feasibility analysis). Use the `chat_id` from analysis responses to send messages.
 
 ### Health
 
@@ -255,26 +254,28 @@ curl -X POST "http://localhost:8000/projects" \
   }'
 ```
 
-### Create a Recipe
+### Discover Features
 
 ```bash
-curl -X POST "http://localhost:8000/recipes" \
+# Trigger feature discovery (runs in background)
+curl -X POST "http://localhost:8000/projects/my-project/features/discover" \
   -H "Content-Type: application/json" \
   -d '{
-    "project_id": "my-project",
-    "recipe_name": "User Authentication",
-    "description": "User authentication feature"
+    "force": false
   }'
+
+# Response returns immediately with status message
+# Check /projects/{project_id}/features to see results once discovery completes
 ```
 
-### Query Feature Details
+### Get Features
 
 ```bash
-curl -X POST "http://localhost:8000/recipes/1/query" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "How does the authentication feature work?"
-  }'
+# List all discovered features for a project
+curl -X GET "http://localhost:8000/projects/my-project/features"
+
+# Get a specific feature (includes chat_id if available)
+curl -X GET "http://localhost:8000/projects/my-project/features/{feature_id}"
 ```
 
 ### Analyze Feasibility
@@ -285,6 +286,17 @@ curl -X POST "http://localhost:8000/projects/my-project/feasibility" \
   -d '{
     "requirement": "Add user authentication with OAuth2",
     "context": "Need to support Google and GitHub OAuth providers"
+  }'
+```
+
+### Chat About Analysis
+
+```bash
+# Use the chat_id from feasibility or feature responses
+curl -X POST "http://localhost:8000/chats/{chat_id}/message" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Can you explain more about the risks?"
   }'
 ```
 
@@ -339,18 +351,38 @@ The application uses SQLAlchemy ORM with the following tables:
   - `description`: Project description
   - `created_at`, `updated_at`: Timestamps
 
-- **recipes**: Stores recipe/feature information
+- **project_features**: Stores discovered features from codebase analysis
   - `id`: Primary key
   - `project_id`: Foreign key to projects
-  - `recipe_name`: Name of the recipe/feature
-  - `description`: Recipe description
+  - `chat_id`: Foreign key to chats (optional, for follow-up questions)
+  - `feature_name`: Name of the feature
+  - `high_level_overview`: High-level feature overview
+  - `scope`: Feature scope
+  - `dependencies`: List of dependencies
+  - `key_considerations`: List of key considerations
+  - `limitations`: List of limitations
+  - `discovery_timestamp`: When the feature was discovered
+  - `created_at`, `updated_at`: Timestamps
+
+- **feasibilities**: Stores feasibility analysis results
+  - `id`: Primary key
+  - `project_id`: Foreign key to projects
+  - `chat_id`: Foreign key to chats (for follow-up questions)
+  - `requirement`: Requirement being analyzed
+  - `context`: Additional context
+  - `high_level_design`: High-level design approach
+  - `risks`: List of risks
+  - `open_questions`: List of open questions
+  - `technical_feasibility`: Feasibility rating
+  - `rough_estimate`: Time and effort estimates
+  - `task_breakdown`: Task breakdown
+  - `analysis_timestamp`: When the analysis was performed
   - `created_at`, `updated_at`: Timestamps
 
 - **chats**: Stores chat sessions for follow-up conversations
   - `id`: Primary key
   - `project_id`: Foreign key to projects (optional)
-  - `recipe_id`: Foreign key to recipes (optional)
-  - `analysis_type`: Type of analysis ('feasibility' or 'feature')
+  - `analysis_type`: Type of analysis ('feasibility', 'project_feature', etc.)
   - `analysis_context`: Original analysis context
   - `conversation_history`: JSON string of conversation messages
   - `created_at`, `updated_at`: Timestamps
@@ -446,6 +478,8 @@ python init_db.py
 - The application uses Codex terminal runner (similar to jira-planbot) for codebase analysis
 - LangGraph workflows orchestrate the analysis process
 - Repositories are cloned to `GIT_REPO_BASE_PATH/{project_id}`
+- Feature discovery runs in background tasks (compatible with render.com) - endpoints return immediately
 - Chat sessions are automatically created after each analysis, allowing users to ask follow-up questions
 - All responses are written in business-friendly language for product managers (no technical jargon or code details)
+- Background tasks use FastAPI's `BackgroundTasks` for render.com compatibility
 

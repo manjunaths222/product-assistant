@@ -79,7 +79,7 @@ result = orchestrator.run(
 ```python
 result = orchestrator.run(
     project_id="project-123",
-    recipe_id=789,
+    feature_id=789,
     query="How does authentication work?",
     db=db_session
 )
@@ -107,11 +107,30 @@ result = orchestrator.run(
 4. **Unified State**: Single state schema simplifies data flow
 5. **Extensible**: Easy to add new agent types or routing logic
 
+## Background Tasks
+
+The system uses FastAPI's `BackgroundTasks` for long-running operations:
+
+### Feature Discovery
+- `POST /projects/{project_id}/features/discover` runs feature discovery in the background
+- Endpoint returns immediately with a status message
+- Compatible with render.com and other containerized deployments
+- Features are stored in the database once discovery completes
+- Users can check `/projects/{project_id}/features` to see results
+
+### Benefits
+- Non-blocking API responses
+- Better user experience (immediate feedback)
+- Compatible with serverless/containerized deployments
+- No external task queue required
+
 ## Current Status
 
 All routers and endpoints now use `UnifiedOrchestrator`. The system provides:
 - Intelligent routing between chat and analysis
 - Context-aware conversations
 - Automatic chat session creation after analysis
+- Background task processing for feature discovery
+- Simplified chat API (no manual chat creation needed)
 - Ability to trigger new analysis from chat conversations
 

@@ -32,6 +32,9 @@ curl -X POST "http://localhost:8000/projects" \
 
 **Response:** Returns project with auto-generated `project_id` (UUID) and `repo_path`
 
+**Note:** Feature discovery runs automatically in the background after project creation.
+Feature discovery runs in the background. Check the features endpoint after a few moments.
+
 **Save the `project_id` from response** - you'll need it for next steps!
 
 ---
@@ -46,7 +49,44 @@ curl -X GET "http://localhost:8000/projects"
 
 ---
 
-## Step 4: Analyze Feasibility
+## Step 4: Discover Features (Optional)
+This is optional API considering that the POST /projects already runs feature discovery by default.
+
+**Endpoint:** `POST /projects/{project_id}/features/discover`
+
+Replace `{project_id}` with the project_id from Step 2.
+
+```bash
+curl -X POST "http://localhost:8000/projects/YOUR_PROJECT_ID/features/discover" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "force": false
+  }'
+```
+
+**Response:** Returns immediately with status message:
+```json
+{
+  "status": "started",
+  "message": "Feature discovery started for project 'YOUR_PROJECT_ID'. Check /projects/YOUR_PROJECT_ID/features for results once discovery completes.",
+  "project_id": "YOUR_PROJECT_ID"
+}
+```
+
+**Note:** Feature discovery runs in the background. Check the features endpoint after a few moments.
+
+**Get discovered features:**
+```bash
+# List all features
+curl -X GET "http://localhost:8000/projects/YOUR_PROJECT_ID/features"
+
+# Get a specific feature (includes chat_id if available)
+curl -X GET "http://localhost:8000/projects/YOUR_PROJECT_ID/features/{feature_id}"
+```
+
+---
+
+## Step 5: Analyze Feasibility
 
 **Endpoint:** `POST /projects/{project_id}/feasibility`
 
@@ -71,7 +111,7 @@ curl -X POST "http://localhost:8000/projects/YOUR_PROJECT_ID/feasibility" \
 
 ---
 
-## Step 5: Chat About the Analysis
+## Step 6: Chat About the Analysis
 
 **Endpoint:** `POST /chats/{chat_id}/message`
 
@@ -99,7 +139,7 @@ curl -X POST "http://localhost:8000/chats/YOUR_CHAT_ID/message" \
 
 ---
 
-## Step 6: Get Chat History
+## Step 7: Get Chat History
 
 **Endpoint:** `GET /chats/{chat_id}/history`
 
@@ -111,50 +151,64 @@ curl -X GET "http://localhost:8000/chats/YOUR_CHAT_ID/history"
 
 ---
 
-## Alternative Flow: Feature Analysis
+## Alternative Flow: Feature Discovery and Chat
 
-### Step 1: Create a Recipe (Feature)
+### Step 1: Discover Features
 
-**Endpoint:** `POST /recipes`
+**Endpoint:** `POST /projects/{project_id}/features/discover`
 
 ```bash
-curl -X POST "http://localhost:8000/recipes" \
+curl -X POST "http://localhost:8000/projects/YOUR_PROJECT_ID/features/discover" \
   -H "Content-Type: application/json" \
   -d '{
-    "project_id": "YOUR_PROJECT_ID",
-    "recipe_name": "Document Upload",
-    "description": "Feature for uploading documents"
+    "force": false
   }'
 ```
 
-**Save the `id` (recipe_id) from response**
+**Note:** This runs in the background. Wait a few moments, then check for features.
 
 ---
 
-### Step 2: Query Feature Details
+### Step 2: Get Discovered Features
 
-**Endpoint:** `POST /recipes/{recipe_id}/query`
-
-Replace `{recipe_id}` with the id from Step 1.
+**Endpoint:** `GET /projects/{project_id}/features`
 
 ```bash
-curl -X POST "http://localhost:8000/recipes/YOUR_RECIPE_ID/query" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "How does the document upload feature work?"
-  }'
+curl -X GET "http://localhost:8000/projects/YOUR_PROJECT_ID/features"
+```
+
+**Response:** List of discovered features, each with:
+- `feature_id` - ID of the feature
+- `feature_name` - Name of the feature
+- `high_level_overview` - Overview of the feature
+- `scope` - Feature scope
+- `dependencies` - List of dependencies
+- `key_considerations` - Key considerations
+- `limitations` - Limitations
+- **`chat_id`** - Use this to chat about the feature (if available)
+
+---
+
+### Step 3: Get Specific Feature
+
+**Endpoint:** `GET /projects/{project_id}/features/{feature_id}`
+
+```bash
+curl -X GET "http://localhost:8000/projects/YOUR_PROJECT_ID/features/{feature_id}"
 ```
 
 **Response includes:**
-- `high_level_design` - Feature overview
-- `feature_details` - Detailed feature breakdown
-- **`chat_id`** - Save this for follow-up questions!
+- Full feature details
+- **`chat_id`** - Use this to chat about the feature (if available)
+- `chat_history` - Previous conversation history (if chat exists)
 
 ---
 
-### Step 3: Chat About the Feature
+### Step 4: Chat About the Feature
 
 **Endpoint:** `POST /chats/{chat_id}/message`
+
+Use the `chat_id` from the feature response.
 
 ```bash
 curl -X POST "http://localhost:8000/chats/YOUR_CHAT_ID/message" \
@@ -163,6 +217,8 @@ curl -X POST "http://localhost:8000/chats/YOUR_CHAT_ID/message" \
     "message": "What user interactions are supported?"
   }'
 ```
+
+**Note:** If the feature doesn't have a `chat_id`, chats are created automatically when needed during feasibility analysis or other operations.
 
 ---
 
@@ -186,7 +242,18 @@ PROJECT_RESPONSE=$(curl -s -X POST "$BASE_URL/projects" \
 PROJECT_ID=$(echo $PROJECT_RESPONSE | jq -r '.project_id')
 echo "Project ID: $PROJECT_ID"
 
-echo -e "\n2. Analyzing feasibility..."
+echo -e "\n2. Triggering feature discovery (runs in background)..."
+curl -s -X POST "$BASE_URL/projects/$PROJECT_ID/features/discover" \
+  -H "Content-Type: application/json" \
+  -d '{"force": false}' | jq
+
+echo -e "\n3. Waiting a few seconds for feature discovery..."
+sleep 5
+
+echo -e "\n4. Getting discovered features..."
+curl -s -X GET "$BASE_URL/projects/$PROJECT_ID/features" | jq
+
+echo -e "\n5. Analyzing feasibility..."
 FEASIBILITY_RESPONSE=$(curl -s -X POST "$BASE_URL/projects/$PROJECT_ID/feasibility" \
   -H "Content-Type: application/json" \
   -d '{
@@ -197,14 +264,14 @@ FEASIBILITY_RESPONSE=$(curl -s -X POST "$BASE_URL/projects/$PROJECT_ID/feasibili
 CHAT_ID=$(echo $FEASIBILITY_RESPONSE | jq -r '.chat_id')
 echo "Chat ID: $CHAT_ID"
 
-echo -e "\n3. Sending chat message..."
+echo -e "\n6. Sending chat message..."
 curl -X POST "$BASE_URL/chats/$CHAT_ID/message" \
   -H "Content-Type: application/json" \
   -d '{
     "message": "What are the main risks?"
   }' | jq
 
-echo -e "\n4. Getting chat history..."
+echo -e "\n7. Getting chat history..."
 curl -s -X GET "$BASE_URL/chats/$CHAT_ID/history" | jq
 ```
 
@@ -220,14 +287,20 @@ chmod +x test_apis.sh
 
 ### Unified Orchestrator Flow
 
-1. **Feasibility/Feature Analysis:**
+1. **Feature Discovery:**
+   - Runs in background using FastAPI BackgroundTasks
+   - Endpoint returns immediately with status message
+   - Discovery process analyzes codebase and stores features
+   - Compatible with render.com deployment
+
+2. **Feasibility/Feature Analysis:**
    - Router determines it's an analysis request
    - Routes to appropriate analysis agent
    - Analysis agent runs Codex analysis
    - Returns business-friendly results
    - **Automatically creates chat session** for follow-ups
 
-2. **Chat Messages:**
+3. **Chat Messages:**
    - Router determines it's a chat request
    - Routes to chat agent
    - Chat agent uses:
@@ -240,23 +313,25 @@ chmod +x test_apis.sh
 
 ✅ **Auto-generated project_id** - No need to provide it  
 ✅ **Stored repo_path** - Retrieved from database automatically  
+✅ **Background feature discovery** - Runs asynchronously, returns immediately
 ✅ **Automatic chat creation** - After every analysis  
 ✅ **Context-aware chat** - Remembers previous analysis  
 ✅ **Business-friendly responses** - No technical jargon  
 ✅ **Unified routing** - Single orchestrator handles everything  
+✅ **Render.com compatible** - Uses FastAPI BackgroundTasks
 
 ---
 
 ## Testing Checklist
 
-- [ ] Create a project (auto-generates project_id)
+- [ ] Create a project (auto-generates project_id, feature discovery runs in background)
 - [ ] List projects
+- [ ] Trigger feature discovery (runs in background)
+- [ ] Get discovered features
+- [ ] Get specific feature (includes chat_id if available)
 - [ ] Analyze feasibility (get chat_id)
 - [ ] Send chat message about feasibility analysis
 - [ ] Get chat history
-- [ ] Create a recipe
-- [ ] Query feature details (get chat_id)
-- [ ] Send chat message about feature
 - [ ] Test multiple follow-up questions in same chat
 
 ---
@@ -269,6 +344,11 @@ chmod +x test_apis.sh
 **If you get "chat not found":**
 - Make sure you're using the chat_id from the analysis response
 - Chat is automatically created after analysis completes
+
+**If feature discovery takes too long:**
+- Feature discovery runs in background - endpoint returns immediately
+- Wait a few moments, then check /projects/{project_id}/features
+- Check server logs for progress
 
 **If analysis takes too long:**
 - Codex analysis may take time depending on codebase size
