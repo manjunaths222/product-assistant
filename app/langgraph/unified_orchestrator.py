@@ -11,6 +11,7 @@ from app.langgraph.unified_state import UnifiedAgentState
 from app.langgraph.unified_graph import create_unified_graph
 from app.services.git_service import GitService
 from app.models.db_models import Chat
+from app.config import MAX_CONVERSATION_HISTORY_MESSAGES
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,6 @@ logger = logging.getLogger(__name__)
 def _create_chat_session(
     db: Session,
     project_id: str,
-    recipe_id: Optional[int],
     analysis_type: str,
     analysis_context: str
 ) -> Optional[int]:
@@ -31,7 +31,7 @@ def _create_chat_session(
     try:
         chat = Chat(
             project_id=project_id,
-            recipe_id=recipe_id,
+            recipe_id=None,  # Kept for backward compatibility only
             analysis_type=analysis_type,
             analysis_context=analysis_context,
             conversation_history="[]"
@@ -62,7 +62,6 @@ class UnifiedOrchestrator:
         chat_id: Optional[int] = None,
         message: Optional[str] = None,
         # Feature analysis parameters
-        recipe_id: Optional[int] = None,
         query: Optional[str] = None,
         # Feasibility analysis parameters
         requirement: Optional[str] = None,
@@ -78,7 +77,6 @@ class UnifiedOrchestrator:
             db: Database session
             chat_id: Chat ID for follow-up conversations
             message: User message for chat
-            recipe_id: Recipe ID for feature analysis
             query: Query for feature analysis
             requirement: Requirement for feasibility analysis
             context: Context for feasibility analysis
@@ -112,6 +110,15 @@ class UnifiedOrchestrator:
                     if chat.conversation_history:
                         try:
                             conversation_history = json.loads(chat.conversation_history)
+                            # Truncate to keep only recent messages to prevent context window overflow
+                            original_length = len(conversation_history)
+                            if original_length > MAX_CONVERSATION_HISTORY_MESSAGES:
+                                # Keep the most recent messages (last N messages)
+                                conversation_history = conversation_history[-MAX_CONVERSATION_HISTORY_MESSAGES:]
+                                logger.warning(
+                                    f"Truncated conversation history from {original_length} "
+                                    f"to {len(conversation_history)} messages for chat_id {chat_id}"
+                                )
                         except json.JSONDecodeError:
                             conversation_history = []
             
@@ -132,7 +139,7 @@ class UnifiedOrchestrator:
                 "message": message,
                 "conversation_history": conversation_history,
                 "analysis_context": analysis_context,
-                "recipe_id": recipe_id,
+                "recipe_id": None,  # No longer used
                 "query": query,  # Only set if explicitly provided (not from message)
                 "requirement": requirement,  # Only set if explicitly provided (not from message)
                 "context": context,
@@ -167,6 +174,13 @@ class UnifiedOrchestrator:
                     chat = db.query(Chat).filter(Chat.id == chat_id).first()
                     if chat:
                         updated_history = final_state.get("conversation_history", [])
+                        # Truncate history before saving to prevent unbounded growth
+                        if len(updated_history) > MAX_CONVERSATION_HISTORY_MESSAGES:
+                            updated_history = updated_history[-MAX_CONVERSATION_HISTORY_MESSAGES:]
+                            logger.info(
+                                f"Truncated conversation history to {len(updated_history)} messages "
+                                f"before saving for chat_id {chat_id}"
+                            )
                         chat.conversation_history = json.dumps(updated_history)
                         db.commit()
                         logger.info(f"Updated chat history for chat_id {chat_id}")
@@ -205,7 +219,6 @@ Feature Details:
                         result["chat_id"] = _create_chat_session(
                             db=db,
                             project_id=project_id,
-                            recipe_id=recipe_id,
                             analysis_type="feature",
                             analysis_context=analysis_context
                         )
@@ -256,7 +269,6 @@ Estimate: {final_state.get("rough_estimate", {})}
                         result["chat_id"] = _create_chat_session(
                             db=db,
                             project_id=project_id,
-                            recipe_id=None,
                             analysis_type="feasibility",
                             analysis_context=analysis_context
                         )

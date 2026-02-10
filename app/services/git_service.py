@@ -50,12 +50,40 @@ class GitService:
                 logger.info(f"Cloning repository from {github_repo} to {repo_path}...")
                 repo = Repo.clone_from(github_repo, repo_path, branch=self.branch)
                 logger.info(f"Successfully cloned repository to {repo_path}")
-            
+
+            self._ensure_repo_is_usable(repo_path)
             return str(repo_path)
             
         except Exception as e:
             logger.error(f"Error cloning/pulling Git repository: {str(e)}", exc_info=True)
             raise
+
+    def _ensure_repo_is_usable(self, repo_path: Path) -> None:
+        """
+        Validate that the repo path is a usable Git checkout with files.
+        Raises an error if the repo is missing core git metadata or has no files.
+        """
+        git_dir = repo_path / ".git"
+        if not git_dir.exists():
+            raise ValueError(f"Repo at {repo_path} is missing .git directory.")
+
+        if not (git_dir / "config").exists() or not (git_dir / "HEAD").exists():
+            raise ValueError(f"Repo at {repo_path} has incomplete git metadata.")
+
+        # Verify GitPython can load it
+        Repo(repo_path)
+
+        # Ensure there are actual files besides .git
+        has_files = False
+        for root, dirs, files in os.walk(repo_path):
+            # Skip .git and common noise
+            dirs[:] = [d for d in dirs if d not in [".git", "__pycache__", "venv", "node_modules", ".venv"]]
+            if files:
+                has_files = True
+                break
+
+        if not has_files:
+            raise ValueError(f"Repo at {repo_path} contains no files to analyze.")
     
     def get_codebase_structure(self, repo_path: str) -> dict:
         """
@@ -100,4 +128,3 @@ class GitService:
         except Exception as e:
             logger.error(f"Error getting codebase structure: {str(e)}", exc_info=True)
             return {"path": repo_path, "files": [], "directories": []}
-

@@ -6,6 +6,7 @@ import json
 import logging
 from app.langgraph.unified_state import UnifiedAgentState
 from app.services.gemini_client import GeminiClient
+from app.config import MAX_CONVERSATION_HISTORY_MESSAGES
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +42,18 @@ Avoid technical jargon, code references, or file names. Be conversational and he
                 conversation_context += f"Previous Analysis Context:\n{analysis_context}\n\n"
             
             if conversation_history:
+                # Truncate conversation history to prevent context window overflow
+                # Keep only the most recent messages
+                truncated_history = conversation_history[-MAX_CONVERSATION_HISTORY_MESSAGES:] if len(conversation_history) > MAX_CONVERSATION_HISTORY_MESSAGES else conversation_history
+                
+                if len(conversation_history) > MAX_CONVERSATION_HISTORY_MESSAGES:
+                    logger.warning(
+                        f"Truncated conversation history from {len(conversation_history)} to "
+                        f"{len(truncated_history)} messages in chat node"
+                    )
+                
                 conversation_context += "Conversation History:\n"
-                for msg in conversation_history:
+                for msg in truncated_history:
                     role_label = "Product Manager" if msg.get("role") == "user" else "Assistant"
                     conversation_context += f"{role_label}: {msg.get('content', '')}\n\n"
             

@@ -171,8 +171,16 @@ GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_FALLBACK_MODEL=gemini-2.5-pro
 
-# Codex API Configuration
-CODEX_API_KEY=your_codex_api_key_here
+# Codex Configuration
+# Option 1: OAuth Authentication (Recommended - no quota limits)
+# For local: Run 'codex auth login' once to create OAuth tokens
+# For Render: Set CODEX_AUTH_JSON environment variable (base64-encoded auth.json)
+# CODEX_AUTH_JSON=<base64-encoded-auth-json>
+
+# Option 2: API Key Authentication (has quota limits, only used if CODEX_USE_API_KEY=true)
+# CODEX_USE_API_KEY=true
+# CODEX_API_KEY=your_codex_api_key_here
+
 CODEX_MODEL=gpt-5-codex
 CODEX_FALLBACK_MODEL=gpt-5
 
@@ -286,7 +294,9 @@ The application reads configuration from environment variables (see `.env.exampl
 
 - `DATABASE_URL`: PostgreSQL connection string
 - `GEMINI_API_KEY`: Gemini API key for LLM operations
-- `CODEX_API_KEY`: Codex API key for code analysis
+- `CODEX_AUTH_JSON`: OAuth auth.json content (base64-encoded) for Codex CLI (recommended, no quota limits)
+- `CODEX_USE_API_KEY`: Set to `true` to use API key instead of OAuth (has quota limits)
+- `CODEX_API_KEY`: Codex API key (only needed if `CODEX_USE_API_KEY=true`)
 - `GIT_REPO_BASE_PATH`: Base path for cloning repositories
 
 ## Deployment on Render
@@ -299,12 +309,22 @@ Environment variables set in Render (via dashboard or `render.yaml`) are automat
 
 **Required environment variables:**
 - `GEMINI_API_KEY`: Your Gemini API key (set in Render dashboard)
-- `CODEX_API_KEY`: Your OpenAI API key (set in Render dashboard, used for Codex CLI authentication)
+- `CODEX_AUTH_JSON`: OAuth auth.json content (base64-encoded) for Codex CLI (recommended, no quota limits)
+
+**Optional environment variables:**
+- `CODEX_USE_API_KEY`: Set to `true` to use API key instead of OAuth (has quota limits)
+- `CODEX_API_KEY`: Your OpenAI API key (only needed if `CODEX_USE_API_KEY=true`)
 
 **Note:** `CODEX_API_KEY` is marked as `sync: false` in `render.yaml`, so it must be set manually in the Render dashboard if not already configured.
 
+**Getting CODEX_AUTH_JSON for Render:**
+1. On your local machine, run `codex auth login` to authenticate
+2. Get the auth.json content: `cat ~/.codex/auth.json | base64`
+3. Copy the base64 output and set it as `CODEX_AUTH_JSON` in Render dashboard
+
 The service will automatically:
-- Authenticate Codex CLI using the `CODEX_API_KEY` environment variable on container startup (via `docker-entrypoint.sh`)
+- Use OAuth authentication if `CODEX_AUTH_JSON` is provided (recommended, no quota limits)
+- Fall back to API key only if `CODEX_USE_API_KEY=true` and `CODEX_API_KEY` is set
 - Connect to the PostgreSQL database configured in `render.yaml`
 - Start the FastAPI server
 
@@ -402,10 +422,24 @@ If tables are not created automatically:
 python init_db.py
 ```
 
-### API Key Issues
+### Codex Authentication Issues
 
-- Ensure `GEMINI_API_KEY` and `CODEX_API_KEY` are set in your `.env` file
-- Verify API keys are valid and have proper permissions
+**For Local Development:**
+- Run `codex auth login` once to create OAuth tokens in `~/.codex/auth.json`
+- The application will automatically use OAuth authentication (no quota limits)
+- If you need to use API key instead, set `CODEX_USE_API_KEY=true` and `CODEX_API_KEY` in your `.env` file
+
+**For Render Deployment:**
+- **Recommended**: Set `CODEX_AUTH_JSON` with base64-encoded auth.json content (no quota limits)
+  - Get it locally: `cat ~/.codex/auth.json | base64`
+  - Paste the output as `CODEX_AUTH_JSON` in Render dashboard
+- **Alternative**: Set `CODEX_USE_API_KEY=true` and `CODEX_API_KEY` (has quota limits)
+- Verify authentication is working by checking container logs
+
+**General:**
+- Ensure `GEMINI_API_KEY` is set
+- Verify Codex authentication tokens/keys are valid and have proper permissions
+- Check container logs for authentication status messages
 
 ## Notes
 

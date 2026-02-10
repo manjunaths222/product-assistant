@@ -22,7 +22,7 @@ class UnifiedAgentState(TypedDict):
     analysis_context: Optional[str]
     
     # Feature analysis fields
-    recipe_id: Optional[int]
+    recipe_id: Optional[int]  # Deprecated - kept for backward compatibility only, always None
     query: Optional[str]
     high_level_design: Optional[str]
     feature_details: Optional[str]

@@ -1,6 +1,6 @@
 """
 Feature Analysis Node
-Analyzes a recipe/feature in the codebase
+Analyzes a feature in the codebase
 """
 
 import logging
@@ -25,7 +25,7 @@ def create_feature_analysis_node() -> callable:
         Uses Codex CLI analysis output to prepare feature details and high-level design.
         """
         try:
-            logger.info(f"Running Feature Analysis agent for recipe {state.get('recipe_id')}")
+            logger.info("Running Feature Analysis agent for project feature")
             
             codex_analysis = state.get("codex_analysis", "")
             query = state.get("query", "")
@@ -102,7 +102,7 @@ Avoid technical jargon, code references, file names, or API details. Be thorough
             return {
                 "high_level_design": high_level_design,
                 "feature_details": feature_details,
-                "messages": state.get("messages", []) + [f"Feature analysis completed for recipe {state.get('recipe_id')}"]
+                "messages": state.get("messages", []) + [f"Feature analysis completed"]
             }
             
         except Exception as e:

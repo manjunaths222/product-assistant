@@ -8,7 +8,7 @@ from typing import Dict, Any, List, TypedDict, Optional
 class FeatureAnalysisState(TypedDict):
     """State schema for feature analysis workflow"""
     project_id: str
-    recipe_id: int
+    recipe_id: Optional[int]  # Optional - not needed for project feature discovery
     query: str
     repo_path: Optional[str]
     codebase_structure: Dict[str, Any]

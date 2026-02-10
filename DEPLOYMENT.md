@@ -8,7 +8,8 @@ This guide covers deploying the Product Assistant API to Render.com.
 2. **Render Account** - Sign up at [render.com](https://render.com) (free with GitHub)
 3. **API Keys**:
    - `GEMINI_API_KEY` - Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - `CODEX_API_KEY` - Your OpenAI/Codex API key
+   - `CODEX_AUTH_JSON` - OAuth auth.json (base64-encoded) for Codex CLI (recommended, no quota limits)
+     - Or `CODEX_USE_API_KEY=true` + `CODEX_API_KEY` for API key authentication (has quota limits)
 
 ## Render Free Tier
 
@@ -58,8 +59,13 @@ This guide covers deploying the Product Assistant API to Render.com.
    ```
    DATABASE_URL=<your-postgres-connection-string-from-step-1>
    GEMINI_API_KEY=<your-gemini-api-key>
-   CODEX_API_KEY=<your-codex-api-key>
+   CODEX_AUTH_JSON=<base64-encoded-auth-json>
    ```
+   
+   **To get CODEX_AUTH_JSON:**
+   1. On your local machine, run: `codex auth login`
+   2. Get the base64-encoded content: `cat ~/.codex/auth.json | base64`
+   3. Copy the entire output and paste it as `CODEX_AUTH_JSON` value
 
    **Optional (with defaults):**
    ```
@@ -71,6 +77,13 @@ This guide covers deploying the Product Assistant API to Render.com.
    CODEX_FALLBACK_MODEL=gpt-5
    GIT_REPO_BASE_PATH=/tmp/product-assistant-repos
    GIT_BRANCH=main
+   ```
+   
+   **Alternative (API Key - has quota limits):**
+   If you prefer API key instead of OAuth:
+   ```
+   CODEX_USE_API_KEY=true
+   CODEX_API_KEY=<your-codex-api-key>
    ```
 
    **Example DATABASE_URL:**
@@ -100,7 +113,63 @@ Check that tables were created:
 curl https://product-assistant-api.onrender.com/health
 ```
 
-### 2. Test API Endpoints
+### 2. Database Migrations
+
+**How Migrations Work in Deployment:**
+
+The deployment uses **Alembic** for database schema migrations. Here's how it works:
+
+1. **Automatic Migration on Deploy:**
+   - Every time your service starts (including after each deployment), the `docker-entrypoint.sh` script automatically runs:
+     ```bash
+     alembic upgrade head
+     ```
+   - This applies any pending migrations to bring your database schema up to date
+   - Migrations are **idempotent** - running them multiple times is safe
+
+2. **Migration Tracking:**
+   - Alembic creates an `alembic_version` table in your database
+   - This table stores the current migration version
+   - Alembic only applies migrations that haven't been run yet
+
+3. **Migration Process:**
+   ```
+   Local Development → Commit Migration → Push to GitHub → Render Deploys → Auto-Run Migrations
+   ```
+
+4. **Creating New Migrations (Local Development):**
+   ```bash
+   # After making model changes, create a new migration
+   alembic revision --autogenerate -m "description_of_changes"
+   
+   # Review the generated migration file in alembic/versions/
+   # Then commit and push - it will auto-apply on next deployment
+   ```
+
+5. **Manual Migration (If Needed):**
+   If you need to manually run migrations on the deployed database:
+   ```bash
+   # Connect to your Render service via SSH (if available) or use Render Shell
+   alembic upgrade head
+   ```
+
+6. **Rolling Back (Emergency):**
+   ```bash
+   # Rollback one migration
+   alembic downgrade -1
+   
+   # Rollback to specific revision
+   alembic downgrade <revision_id>
+   ```
+
+**Important Notes:**
+- ✅ Migrations run automatically on every deployment
+- ✅ Safe to run multiple times (idempotent)
+- ✅ Tracks migration history in `alembic_version` table
+- ⚠️ Always test migrations locally before deploying
+- ⚠️ Backup database before major schema changes
+
+### 3. Test API Endpoints
 
 ```bash
 # Health check
@@ -113,7 +182,7 @@ curl https://product-assistant-api.onrender.com/projects
 open https://product-assistant-api.onrender.com/docs
 ```
 
-### 3. Monitor Logs
+### 4. Monitor Logs
 
 - Go to Render Dashboard → Your Service → **"Logs"** tab
 - View real-time logs and errors
@@ -182,17 +251,37 @@ The repository includes a GitHub Actions workflow (`.github/workflows/keep-alive
 
 **Error: "Application failed to start"**
 - Check environment variables are set correctly
-- Verify `init_db.py` runs successfully (check logs)
+- Verify migrations run successfully (check logs for `alembic upgrade head`)
 - Ensure API keys are valid
 - Check application logs for specific errors
 
-### API Keys Not Working
+**Error: "Migration failed" or "alembic_version table not found"**
+- First deployment: The `init_db.py` fallback will create tables if migrations fail
+- Subsequent deployments: Check that `DATABASE_URL` is correct
+- Verify database connection is working
+- Check migration files are present in `alembic/versions/`
 
-**Error: "Invalid API key"**
-- Verify API keys are set correctly in environment variables
-- Check for extra spaces in environment variable values
-- Ensure API keys have proper permissions
-- Verify API key quotas are not exceeded
+### Codex Authentication Issues
+
+**Error: "Invalid API key" or "Authentication failed"**
+- **For OAuth (Recommended):**
+  - Verify `CODEX_AUTH_JSON` is set correctly (base64-encoded auth.json)
+  - Check that the base64 encoding is correct (no extra spaces or line breaks)
+  - Ensure the auth.json was generated from `codex auth login` on your local machine
+  - Check container logs for "Codex OAuth auth.json restored" message
+- **For API Key:**
+  - Verify `CODEX_USE_API_KEY=true` and `CODEX_API_KEY` are set correctly
+  - Check for extra spaces in environment variable values
+  - Ensure API keys have proper permissions
+  - Verify API key quotas are not exceeded (OAuth has no quota limits)
+
+**Getting CODEX_AUTH_JSON:**
+```bash
+# On your local machine
+codex auth login
+cat ~/.codex/auth.json | base64
+# Copy the entire output and paste as CODEX_AUTH_JSON in Render
+```
 
 ## Updating Your Deployment
 

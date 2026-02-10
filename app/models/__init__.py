@@ -3,12 +3,11 @@ Database models
 """
 
 from app.models.database import Base, engine, get_db, SessionLocal
-from app.models.db_models import Project, Recipe
+from app.models.db_models import Project
+# Recipe model kept in db_models for backward compatibility only
 from app.models.schemas import (
     ProjectCreate,
     ProjectResponse,
-    RecipeCreate,
-    RecipeResponse,
     FeatureQueryRequest,
     FeatureQueryResponse,
     FeasibilityQueryRequest,
@@ -21,11 +20,8 @@ __all__ = [
     "get_db",
     "SessionLocal",
     "Project",
-    "Recipe",
     "ProjectCreate",
     "ProjectResponse",
-    "RecipeCreate",
-    "RecipeResponse",
     "FeatureQueryRequest",
     "FeatureQueryResponse",
     "FeasibilityQueryRequest",

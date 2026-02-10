@@ -150,3 +150,80 @@ Respond in the following format:
     except Exception as e:
         logger.error(f"Error running terminal Codex analysis: {str(e)}", exc_info=True)
         return ""
+
+
+def run_codex_raw_prompt(repo_path: str, prompt: str) -> str:
+    """
+    Run Codex analysis with a raw prompt, without any wrapper instructions.
+
+    Args:
+        repo_path: Path to the cloned repository
+        prompt: Raw prompt to pass through verbatim
+
+    Returns:
+        Analysis text (stdout) or an empty string on failure.
+    """
+    if not repo_path:
+        logger.warning("No repo_path provided for terminal Codex analysis.")
+        return ""
+
+    if not prompt:
+        logger.warning("Empty prompt provided for terminal Codex analysis.")
+        return ""
+
+    env = os.environ.copy()
+    output_path = f"/tmp/codex_last_message_{os.getpid()}_{int(time.time())}.txt"
+    raw_prompt = prompt.strip()
+
+    try:
+        result = subprocess.run(
+            [
+                "codex",
+                "exec",
+                "-C",
+                repo_path,
+                "--sandbox",
+                "read-only",
+                "--color",
+                "never",
+                "--output-last-message",
+                output_path,
+                "-",
+            ],
+            cwd=repo_path,
+            env=env,
+            input=raw_prompt,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            logger.error(
+                "Terminal Codex analysis failed (rc=%s): %s",
+                result.returncode,
+                (result.stderr or "").strip(),
+            )
+            return ""
+
+        try:
+            output_file = Path(output_path)
+            if output_file.exists():
+                output_text = output_file.read_text(errors="ignore").strip()
+                if output_text:
+                    return output_text
+        except Exception as read_error:
+            logger.warning("Failed to read Codex output file: %s", str(read_error))
+
+        stdout_text = (result.stdout or "").strip()
+        if stdout_text:
+            return stdout_text
+
+        logger.warning(
+            "Codex returned empty output (rc=%s). stderr=%s",
+            result.returncode,
+            (result.stderr or "").strip(),
+        )
+        return ""
+    except Exception as e:
+        logger.error(f"Error running terminal Codex analysis: {str(e)}", exc_info=True)
+        return ""

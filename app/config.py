@@ -29,15 +29,20 @@ DATABASE_URL = os.getenv(
 )
 
 # Gemini API Configuration
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyAOqBY9Oqrp7fRQB5yYymU0HYtuJOUMefA")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-pro")
 
 # Codex Configuration
-CODEX_API_KEY = os.getenv("CODEX_API_KEY", "")
+CODEX_AUTH_JSON = os.getenv("CODEX_AUTH_JSON", "")
 CODEX_MODEL = os.getenv("CODEX_MODEL", "gpt-5-codex")
 CODEX_FALLBACK_MODEL = os.getenv("CODEX_FALLBACK_MODEL", "gpt-5")
 
 # Git Configuration
 GIT_REPO_BASE_PATH = os.getenv("GIT_REPO_BASE_PATH", "/tmp/product-assistant-repos")
 GIT_BRANCH = os.getenv("GIT_BRANCH", "main")
+
+# Conversation History Configuration
+# Maximum number of conversation messages to keep in history
+# This prevents context window overflow and maintains performance
+MAX_CONVERSATION_HISTORY_MESSAGES = int(os.getenv("MAX_CONVERSATION_HISTORY_MESSAGES", "20"))

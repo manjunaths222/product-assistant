@@ -21,7 +21,7 @@ def create_feature_analysis_adapter() -> callable:
             # Convert to FeatureAnalysisState
             feature_state: FeatureAnalysisState = {
                 "project_id": state["project_id"],
-                "recipe_id": state.get("recipe_id", 0),
+                "recipe_id": None,  # No longer used
                 "query": state.get("query", ""),
                 "repo_path": state.get("repo_path"),
                 "codebase_structure": state.get("codebase_structure", {}),

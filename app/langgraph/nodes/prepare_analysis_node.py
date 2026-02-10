@@ -44,7 +44,7 @@ def create_prepare_analysis_node() -> callable:
                     logger.info(f"Running Codex analysis for {request_type}...")
                     codex_analysis = run_codex_in_terminal(repo_path, full_query)
                     if codex_analysis:
-                        logger.info("Codex analysis completed.")
+                        logger.info(f"Codex analysis completed for {request_type} -- {codex_analysis}")
                     else:
                         logger.warning("Codex analysis returned empty output.")
             
