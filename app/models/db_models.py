@@ -15,9 +15,13 @@ class Project(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(String(255), unique=True, index=True, nullable=False)
+    project_name = Column(String(500), nullable=True)  # Optional project name
     github_repo = Column(String(500), nullable=False)
     repo_path = Column(String(1000), nullable=False)  # Store the local repository path
     description = Column(Text, nullable=True)
+    summary = Column(Text, nullable=True)  # Project summary generated from codebase
+    purpose = Column(Text, nullable=True)  # Project purpose generated from codebase
+    tech_stack = Column(JSON, nullable=True)  # Tech stack as JSON array/list
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

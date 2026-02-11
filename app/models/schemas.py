@@ -12,15 +12,20 @@ class ProjectCreate(BaseModel):
     github_repo: str = Field(..., description="GitHub repository URL")
     description: Optional[str] = Field(None, description="Project description")
     project_id: Optional[str] = Field(None, description="Optional custom project identifier (auto-generated if not provided)")
+    project_name: Optional[str] = Field(None, description="Optional project name")
 
 
 class ProjectResponse(BaseModel):
     """Schema for project response"""
     id: int
     project_id: str
+    project_name: Optional[str]
     github_repo: str
     repo_path: str
     description: Optional[str]
+    summary: Optional[str]
+    purpose: Optional[str]
+    tech_stack: Optional[List[str]]
     created_at: datetime
     updated_at: datetime
 

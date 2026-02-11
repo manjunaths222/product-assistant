@@ -19,6 +19,7 @@ from app.models.schemas import (
     ProjectFeatureResponse, FeatureDiscoveryRequest, ChatMessageRequest, ChatMessageResponse
 )
 from app.services.feature_discovery_service import FeatureDiscoveryService
+from app.services.project_summary_service import ProjectSummaryService
 from app.utils import ensure_repo_exists
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ async def create_project(
         # Create project in database with stored repo_path
         db_project = Project(
             project_id=project_id,
+            project_name=project_data.project_name,  # Store project name if provided
             github_repo=project_data.github_repo,
             repo_path=repo_path,  # Store the repository path
             description=project_data.description
@@ -66,6 +68,15 @@ async def create_project(
         db.commit()
         db.refresh(db_project)
         
+        # Trigger project summary generation in background
+        background_tasks.add_task(
+            generate_project_summary_background_task,
+            project_id=project_id,
+            repo_path=repo_path,
+            project_name=project_data.project_name
+        )
+        logger.info(f"Started background project summary generation for project {project_id}")
+
         # Trigger feature discovery in background using FastAPI BackgroundTasks
         background_tasks.add_task(
             discover_features_background_task,
@@ -74,7 +85,7 @@ async def create_project(
             force=False
         )
         logger.info(f"Started background feature discovery for project {project_id}")
-        
+
         return db_project
         
     except HTTPException:
@@ -316,6 +327,36 @@ def discover_features_background_task(
             bg_db.close()
     except Exception as e:
         logger.error(f"Error setting up background feature discovery: {str(e)}", exc_info=True)
+
+
+def generate_project_summary_background_task(
+    project_id: str,
+    repo_path: str,
+    project_name: str = None
+):
+    """
+    Background task to generate project summary, purpose, and tech stack.
+    Creates its own database session for thread safety.
+    """
+    try:
+        # Create a new database session for the background task
+        from app.models.database import SessionLocal
+        bg_db = SessionLocal()
+        try:
+            summary_service = ProjectSummaryService()
+            summary_service.generate_project_summary(
+                project_id=project_id,
+                repo_path=repo_path,
+                project_name=project_name,
+                db=bg_db
+            )
+            logger.info(f"Background project summary generation completed for project {project_id}")
+        except Exception as e:
+            logger.error(f"Error in background project summary generation for project {project_id}: {str(e)}", exc_info=True)
+        finally:
+            bg_db.close()
+    except Exception as e:
+        logger.error(f"Error setting up background project summary generation: {str(e)}", exc_info=True)
 
 
 @router.post("/{project_id}/features/discover")
