@@ -26,13 +26,17 @@ curl -X POST "http://localhost:8000/projects" \
   -H "Content-Type: application/json" \
   -d '{
     "github_repo": "https://github.com/manjunaths222/rag-langchain-langgraph-legal-system.git",
-    "description": "RAG system for legal document Q&A"
+    "description": "RAG system for legal document Q&A",
+    "project_name": "Legal RAG Assistant"
   }'
 ```
 
-**Response:** Returns project with auto-generated `project_id` (UUID) and `repo_path`
+**Request fields (new):**
+- `project_name` (optional) - Friendly name for the project
 
-**Note:** Feature discovery runs automatically in the background after project creation.
+**Response:** Returns project with auto-generated `project_id` (UUID), `repo_path`, and new summary fields.
+
+**Note:** Feature discovery and project summary generation run automatically in the background after project creation.
 Feature discovery runs in the background. Check the features endpoint after a few moments.
 
 **Save the `project_id` from response** - you'll need it for next steps!
@@ -46,6 +50,30 @@ Feature discovery runs in the background. Check the features endpoint after a fe
 ```bash
 curl -X GET "http://localhost:8000/projects"
 ```
+
+**Response includes new fields:**
+- `project_name`
+- `summary`
+- `purpose`
+- `tech_stack` (list of strings)
+
+---
+
+## Step 3.1: Get Project by ID (New)
+
+**Endpoint:** `GET /projects/{project_id}`
+
+Replace `{project_id}` with the project_id from Step 2.
+
+```bash
+curl -X GET "http://localhost:8000/projects/YOUR_PROJECT_ID"
+```
+
+**Response includes new fields:**
+- `project_name`
+- `summary`
+- `purpose`
+- `tech_stack`
 
 ---
 
@@ -108,6 +136,37 @@ curl -X POST "http://localhost:8000/projects/YOUR_PROJECT_ID/feasibility" \
 - `technical_feasibility` - High/Medium/Low
 - `rough_estimate` - Time and effort estimates
 - **`chat_id`** - Save this for follow-up questions!
+
+---
+
+## Step 5.1: List Feasibility Analyses
+
+**Endpoint:** `GET /projects/{project_id}/feasibilities`
+
+Replace `{project_id}` with the project_id from Step 2.
+
+```bash
+curl -X GET "http://localhost:8000/projects/YOUR_PROJECT_ID/feasibilities"
+```
+
+**Response:** List of feasibility analyses (most recent first).
+
+---
+
+## Step 5.2: Get Specific Feasibility
+
+**Endpoint:** `GET /projects/{project_id}/feasibilities/{feasibility_id}`
+
+Replace `{project_id}` and `{feasibility_id}` with values from Step 5.1.
+
+```bash
+curl -X GET "http://localhost:8000/projects/YOUR_PROJECT_ID/feasibilities/YOUR_FEASIBILITY_ID"
+```
+
+**Response includes:**
+- Full feasibility analysis
+- **`chat_id`** (if available)
+- `chat_history` (if chat exists)
 
 ---
 
@@ -236,24 +295,28 @@ PROJECT_RESPONSE=$(curl -s -X POST "$BASE_URL/projects" \
   -H "Content-Type: application/json" \
   -d '{
     "github_repo": "https://github.com/manjunaths222/rag-langchain-langgraph-legal-system.git",
-    "description": "Test project"
+    "description": "Test project",
+    "project_name": "Legal RAG Assistant"
   }')
 
 PROJECT_ID=$(echo $PROJECT_RESPONSE | jq -r '.project_id')
 echo "Project ID: $PROJECT_ID"
 
-echo -e "\n2. Triggering feature discovery (runs in background)..."
+echo -e "\n2. Getting project by ID..."
+curl -s -X GET "$BASE_URL/projects/$PROJECT_ID" | jq
+
+echo -e "\n3. Triggering feature discovery (runs in background)..."
 curl -s -X POST "$BASE_URL/projects/$PROJECT_ID/features/discover" \
   -H "Content-Type: application/json" \
   -d '{"force": false}' | jq
 
-echo -e "\n3. Waiting a few seconds for feature discovery..."
+echo -e "\n4. Waiting a few seconds for feature discovery..."
 sleep 5
 
-echo -e "\n4. Getting discovered features..."
+echo -e "\n5. Getting discovered features..."
 curl -s -X GET "$BASE_URL/projects/$PROJECT_ID/features" | jq
 
-echo -e "\n5. Analyzing feasibility..."
+echo -e "\n6. Analyzing feasibility..."
 FEASIBILITY_RESPONSE=$(curl -s -X POST "$BASE_URL/projects/$PROJECT_ID/feasibility" \
   -H "Content-Type: application/json" \
   -d '{
@@ -262,16 +325,24 @@ FEASIBILITY_RESPONSE=$(curl -s -X POST "$BASE_URL/projects/$PROJECT_ID/feasibili
   }')
 
 CHAT_ID=$(echo $FEASIBILITY_RESPONSE | jq -r '.chat_id')
+FEASIBILITY_ID=$(echo $FEASIBILITY_RESPONSE | jq -r '.feasibility_id')
 echo "Chat ID: $CHAT_ID"
+echo "Feasibility ID: $FEASIBILITY_ID"
 
-echo -e "\n6. Sending chat message..."
+echo -e "\n7. Listing feasibilities..."
+curl -s -X GET "$BASE_URL/projects/$PROJECT_ID/feasibilities" | jq
+
+echo -e "\n8. Getting specific feasibility..."
+curl -s -X GET "$BASE_URL/projects/$PROJECT_ID/feasibilities/$FEASIBILITY_ID" | jq
+
+echo -e "\n9. Sending chat message..."
 curl -X POST "$BASE_URL/chats/$CHAT_ID/message" \
   -H "Content-Type: application/json" \
   -d '{
     "message": "What are the main risks?"
   }' | jq
 
-echo -e "\n7. Getting chat history..."
+echo -e "\n10. Getting chat history..."
 curl -s -X GET "$BASE_URL/chats/$CHAT_ID/history" | jq
 ```
 
@@ -326,10 +397,13 @@ chmod +x test_apis.sh
 
 - [ ] Create a project (auto-generates project_id, feature discovery runs in background)
 - [ ] List projects
+- [ ] Get project by id (includes summary fields)
 - [ ] Trigger feature discovery (runs in background)
 - [ ] Get discovered features
 - [ ] Get specific feature (includes chat_id if available)
 - [ ] Analyze feasibility (get chat_id)
+- [ ] List feasibilities
+- [ ] Get specific feasibility
 - [ ] Send chat message about feasibility analysis
 - [ ] Get chat history
 - [ ] Test multiple follow-up questions in same chat
@@ -357,4 +431,3 @@ chmod +x test_apis.sh
 **If chat doesn't have context:**
 - Make sure you're using the chat_id from the analysis response
 - The chat is linked to that specific analysis
-
