@@ -133,52 +133,61 @@ class FeatureDiscoveryService:
             List of feature names
         """
         prompt = """
-You are a product analyst. Your task is to analyze the codebase and output ONLY a numbered list of features.
+You are a product domain analyst.
 
-DO NOT ask questions. DO NOT provide explanations. DO NOT include conversational text.
+Your task is to analyze the codebase and output ONLY a numbered list of high-level product capabilities.
+
+DO NOT ask questions.
+DO NOT provide explanations.
+DO NOT include conversational text.
 Start immediately with the numbered list.
 
-Task:
-Analyze the codebase and identify distinct features from a product/business perspective.
-A feature is a capability or functionality that provides value:
-- User-facing features (APIs, UIs, workflows)
-- Backend services (authentication, data processing, background jobs, integrations)
-- Business logic and domain capabilities
-- System integrations and external service connections
+Definition:
+A capability is a broad, stable product domain that groups related functionality.
 
-Rules:
-- Focus on features that provide business or functional value
-- Group related functionality into single features
-- Use clear, descriptive feature names (noun phrases)
-- Include both user-facing and backend/infrastructure features
-- Avoid listing low-level technical components
+A capability:
+- Represents a major functional area of the system
+- Groups multiple related features or services
+- Would remain stable even if individual features change
+- Reflects how the product is structured at a domain level
+
+DO NOT list individual features, endpoints, APIs, or workflows.
+DO NOT list low-level technical components.
+
+Group granular functionality into broader domains.
+
+Target:
+Return between 5 and 10 capabilities.
+Avoid being too granular.
+
+Use clear noun phrases.
 
 OUTPUT FORMAT (MANDATORY):
 Start your response immediately with:
-1. Feature Name 1
-2. Feature Name 2
-3. Feature Name 3
+1. Capability Name 1
+2. Capability Name 2
+3. Capability Name 3
 
 DO NOT include:
 - Questions or requests for clarification
 - Explanations or conversational text
-- Status messages like "No features found"
+- Status messages like "No capabilities found"
 - Format descriptions or instructions
 - Quoted text or choices
 
-If no features are found, output nothing (empty response).
+If no capabilities are found, output nothing (empty response).
 
 Example CORRECT output:
-1. User Authentication API
-2. Document Search Service
-3. Legal Case Analysis
-4. Report Generation
-5. Background Job Processing
+1. User Authentication and Authorization
+2. Document Management and Search
+3. Legal Analysis and Intelligence
+4. Reporting and Analytics
+5. System Integration and Data Processing
 
 Example INCORRECT output (DO NOT DO THIS):
 I'm excited to help...
 Which output do you want...
-1. "Feature list only"
+1. "Capability list only"
 2. A 10‑section product analysis format
 """
         
